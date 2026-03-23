@@ -2,6 +2,9 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Force Prisma to use the binary engine (not data proxy/edge client)
+ENV PRISMA_CLIENT_ENGINE_TYPE=binary
+
 # Install dependencies
 COPY package*.json ./
 COPY prisma/ ./prisma/
@@ -18,6 +21,9 @@ RUN npm run build
 # ── Production ─────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
+
+# Ensure runtime also defaults to binary engine
+ENV PRISMA_CLIENT_ENGINE_TYPE=binary
 
 RUN apk add --no-cache dumb-init postgresql-client
 

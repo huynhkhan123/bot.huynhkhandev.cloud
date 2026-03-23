@@ -18,6 +18,13 @@ services:
       start_period: 10s
     networks:
       - internal
+  # ── Redis (for rate limiting / caching) ─────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", ""]  # disable persistence
+    networks:
+      - internal
 
   # ── Backend (NestJS) ─────────────────────────────────────────────────────────
   backend:
@@ -34,7 +41,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DB: ${POSTGRES_DB}
       # Redis Cloud
-      REDIS_URL: ${REDIS_URL}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       # Auth
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
@@ -52,6 +59,7 @@ services:
       FRONTEND_URL: https://${DOMAIN}
       COOKIE_DOMAIN: ${DOMAIN}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      PRISMA_CLIENT_ENGINE_TYPE: binary
     depends_on:
       postgres:
         condition: service_healthy

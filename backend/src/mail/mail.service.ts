@@ -11,7 +11,12 @@ export class MailService {
 
   constructor(private config: ConfigService) {
     const connectionString = this.config.get<string>('AZURE_COMMUNICATION_CONNECTION_STRING', '');
-    this.client = new EmailClient(connectionString);
+    if (!connectionString) {
+      this.logger.warn('AZURE_COMMUNICATION_CONNECTION_STRING is empty — email sending disabled.');
+      this.client = null as unknown as EmailClient;
+    } else {
+      this.client = new EmailClient(connectionString);
+    }
     this.sender = this.config.get<string>('MAIL_FROM', 'noreply@huynhkhandev.cloud');
     this.appUrl = this.config.get<string>('FRONTEND_URL', 'https://bot.huynhkhandev.cloud');
   }
@@ -93,6 +98,10 @@ export class MailService {
 
   // ── Internal send ───────────────────────────────────────────────────────────
   private async send(opts: { to: string; subject: string; html: string }) {
+    if (!this.client) {
+      this.logger.warn(`Email skipped (no AZURE_COMMUNICATION_CONNECTION_STRING). To: ${opts.to} — ${opts.subject}`);
+      return;
+    }
     try {
       const poller = await this.client.beginSend({
         senderAddress: this.sender,
