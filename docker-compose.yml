@@ -27,7 +27,8 @@ services:
     restart: unless-stopped
     environment:
       # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      # Use URL‑encoded password so special characters (e.g. "@") don't break the connection string
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD_URLENCODED:-${POSTGRES_PASSWORD}}@postgres:5432/${POSTGRES_DB}?schema=public
       # For pg_isready in entrypoint
       POSTGRES_HOST: postgres
       POSTGRES_USER: ${POSTGRES_USER}
