@@ -35,6 +35,9 @@ COPY --from=builder /app/node_modules          ./node_modules
 COPY --from=builder /app/package.json          ./package.json
 COPY --from=builder /app/prisma                ./prisma
 COPY --from=builder /app/prisma.config.ts      ./prisma.config.ts
+# Include tsconfig files for ts-node (prisma seed) in runtime image
+COPY --from=builder /app/tsconfig.json         ./tsconfig.json
+COPY --from=builder /app/tsconfig.build.json   ./tsconfig.build.json
 
 # Copy startup script
 COPY docker-entrypoint.sh /docker-entrypoint.sh
