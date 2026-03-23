@@ -1,4 +1,3 @@
-version: '3.9'
 
 services:
   # ── Database ────────────────────────────────────────────────────────────────
@@ -63,9 +62,9 @@ services:
       # AI providers
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      # Email (Resend)
-      RESEND_API_KEY: ${RESEND_API_KEY}
-      MAIL_FROM: ${MAIL_FROM:-BotCloud <noreply@mail.huynhkhandev.cloud>}
+      # Email (Azure Communication Services)
+      AZURE_COMMUNICATION_CONNECTION_STRING: ${AZURE_COMMUNICATION_CONNECTION_STRING}
+      MAIL_FROM: ${MAIL_FROM:-noreply@huynhkhandev.cloud}
       # App
       PORT: 3001
       NODE_ENV: production
