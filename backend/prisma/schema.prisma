@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum AIProvider {
+  GEMINI
+  OPENAI
+}
+
+enum MessageRole {
+  system
+  user
+  assistant
+  tool
+}
+
+enum AgentStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ──────────────────────────────────────────────
+// USERS
+// ──────────────────────────────────────────────
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  username         String    @unique
+  passwordHash     String
+  role             Role      @default(USER)
+  isActive         Boolean   @default(true)
+  isEmailVerified  Boolean   @default(false)
+  avatarUrl        String?
+  provider         AuthProvider @default(LOCAL)
+  lastLoginAt      DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  refreshTokens      RefreshToken[]
+  conversations      Conversation[]
+  usageLogs          UsageLog[]
+  agentRuns          AgentRun[]
+  subscription       UserSubscription?
+  emailVerifications EmailVerification[]
+  passwordResets     PasswordReset[]
+
+  @@index([email])
+  @@index([deletedAt])
+}
+
+// ──────────────────────────────────────────────
+// AUTH
+// ──────────────────────────────────────────────
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  family     String    // UUID family — revoke all on theft detection
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([family])
+}
+
+model EmailVerification {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordReset {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ──────────────────────────────────────────────
+// PLANS & SUBSCRIPTIONS
+// ──────────────────────────────────────────────
+model Plan {
+  id                      String   @id @default(uuid())
+  name                    String   @unique // free, pro
+  dailyMessageLimit       Int
+  monthlyMessageLimit     Int
+  monthlyTokenLimit       Int
+  maxInputTokensPerRequest  Int
+  maxOutputTokensPerRequest Int
+  allowedModels           String[] // e.g. ["gemini-1.5-flash"]
+  canUseAgents            Boolean  @default(false)
+  canUseStreaming          Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  subscriptions UserSubscription[]
+}
+
+model UserSubscription {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  planId    String
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+
+  @@index([userId])
+  @@index([planId])
+}
+
+// ──────────────────────────────────────────────
+// CONVERSATIONS & MESSAGES
+// ──────────────────────────────────────────────
+model Conversation {
+  id         String     @id @default(uuid())
+  userId     String
+  title      String     @default("New Conversation")
+  modelName  String     @default("gemini-1.5-flash")
+  provider   AIProvider @default(GEMINI)
+  deletedAt  DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  usageLogs UsageLog[]
+
+  @@index([userId])
+  @@index([deletedAt])
+}
+
+model Message {
+  id             String      @id @default(uuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  tokensUsed     Int?
+  provider       String?
+  modelName      String?
+  finishReason   String?     // stop | length | error
+  metadata       Json?       // raw provider response extras
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  usageLogs    UsageLog[]
+
+  @@index([conversationId])
+}
+
+// ──────────────────────────────────────────────
+// USAGE LOGS
+// ──────────────────────────────────────────────
+model UsageLog {
+  id             String   @id @default(uuid())
+  requestId      String   @default(uuid()) // for correlating logs
+  userId         String
+  conversationId String?
+  messageId      String?
+  provider       String
+  modelName      String
+  tokensIn       Int      @default(0)
+  tokensOut      Int      @default(0)
+  estimatedCost  Float    @default(0)
+  date           DateTime @default(now()) // for daily quota reset
+  createdAt      DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  message      Message?      @relation(fields: [messageId], references: [id])
+
+  @@index([userId])
+  @@index([userId, date])
+  @@index([requestId])
+}
+
+// ──────────────────────────────────────────────
+// AGENT RUNS (stub — Phase 3)
+// ──────────────────────────────────────────────
+model AgentRun {
+  id           String      @id @default(uuid())
+  userId       String
+  type         String      // e.g. "github-pr", "code-review"
+  status       AgentStatus @default(PENDING)
+  input        Json?
+  output       Json?
+  errorMessage String?
+  metadata     Json?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
