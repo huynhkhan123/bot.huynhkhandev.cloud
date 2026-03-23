@@ -56,6 +56,10 @@ else
 fi
 
 echo ""
+echo "  🔴  Redis Cloud"
+REDIS_URL=$(ask "Redis URL (redis://default:password@host:port)")
+
+echo ""
 echo "  📧  Azure Email Communication Service"
 echo "      (Find in Azure Portal → Communication Services → Keys)"
 AZURE_COMMUNICATION_CONNECTION_STRING=$(ask "Azure connection string (endpoint=https://...;accesskey=...)")
@@ -87,6 +91,9 @@ JWT_REFRESH_EXPIRES_IN=7d
 # ─── AI PROVIDERS ─────────────────────────────────────────────────────────────
 GEMINI_API_KEY=${GEMINI_API_KEY}
 OPENAI_API_KEY=${OPENAI_API_KEY}
+
+# ─── REDIS (Redis Cloud) ──────────────────────────────────────────────────────
+REDIS_URL=${REDIS_URL}
 
 # ─── EMAIL (Azure Communication Services) ─────────────────────────────────────
 AZURE_COMMUNICATION_CONNECTION_STRING=${AZURE_COMMUNICATION_CONNECTION_STRING}
