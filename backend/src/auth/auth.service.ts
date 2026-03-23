@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { MailService } from '../mail/mail.service';
 import * as argon2 from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
 import { RegisterDto } from './dto/register.dto';
@@ -21,6 +22,7 @@ export class AuthService {
     private jwtService: JwtService,
     private config: ConfigService,
     private redis: RedisService,
+    private mail: MailService,
   ) {}
 
   // ─── REGISTER ─────────────────────────────────
@@ -50,6 +52,9 @@ export class AuthService {
       },
       select: { id: true, email: true, username: true, role: true },
     });
+
+    // Send welcome email (non-blocking)
+    this.mail.sendWelcome(user.email, user.username).catch(() => {});
 
     return { message: 'Registration successful', user };
   }
@@ -187,8 +192,8 @@ export class AuthService {
       data: { userId: user.id, tokenHash, expiresAt },
     });
 
-    // TODO Phase 2: send email with reset link containing plain token
-    console.log(`[DEV] Password reset token for ${email}: ${token}`);
+    // Send password reset email (non-blocking — don't leak timing info)
+    this.mail.sendPasswordReset(email, user.username, token).catch(() => {});
 
     return { message: 'If that email exists, a reset link has been sent' };
   }

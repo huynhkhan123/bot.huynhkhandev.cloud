@@ -63,6 +63,9 @@ services:
       # AI providers
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # Email (Resend)
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      MAIL_FROM: ${MAIL_FROM:-BotCloud <noreply@mail.huynhkhandev.cloud>}
       # App
       PORT: 3001
       NODE_ENV: production
