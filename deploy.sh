@@ -18,8 +18,12 @@ echo "🚀  Deploying ${DOMAIN}..."
 # ── 1. Ensure nginx conf uses the actual domain ──────────────────────────────
 export NGINX_DOMAIN="$DOMAIN"
 
+# ── 1b. Reset any previous stack to avoid stuck containers ───────────────────
+echo "♻️  Resetting existing containers (keeps volumes)..."
+docker compose --env-file "$ROOT/.env" down --remove-orphans || true
+
 # ── 2. Process nginx.conf — substitute $DOMAIN ───────────────────────────────
-envsubst '${NGINX_DOMAIN}' < "$ROOT/nginx/nginx.conf" > /tmp/nginx_final.conf
+sed "s|\${NGINX_DOMAIN}|$NGINX_DOMAIN|g" "$ROOT/nginx/nginx.conf" > /tmp/nginx_final.conf
 mkdir -p "$ROOT/nginx"
 cp /tmp/nginx_final.conf "$ROOT/nginx/nginx.conf"
 
@@ -31,14 +35,12 @@ docker compose --env-file "$ROOT/.env" build
 if [ ! -d "$ROOT/nginx/ssl_bootstrap_done" ]; then
   echo "🔐  Bootstrapping SSL certificate for $DOMAIN..."
 
-  # Start nginx in HTTP-only mode temporarily
-  docker compose up -d nginx
-  sleep 5
-
-  # Issue certificate
-  docker compose run --rm certbot certbot certonly \
-    --webroot \
-    --webroot-path /var/www/certbot \
+  # Issue certificate using standalone mode (binds to host port 80)
+  # Override the service entrypoint to avoid the renew loop
+  docker compose --env-file "$ROOT/.env" run --rm --entrypoint "" -p 80:80 certbot certbot certonly \
+    --standalone \
+    --preferred-challenges http \
+    --non-interactive \
     --email "$CERTBOT_EMAIL" \
     --agree-tos \
     --no-eff-email \
@@ -53,6 +55,9 @@ fi
 # ── 5. Start all services ─────────────────────────────────────────────────────
 echo "🚀  Starting all services..."
 docker compose --env-file "$ROOT/.env" up -d
+
+# ── 6. Force a restart to pick up any cached state cleanly ───────────────────
+docker compose --env-file "$ROOT/.env" restart
 
 echo ""
 echo "✅  Done! Your app is live at: https://${DOMAIN}"
